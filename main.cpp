@@ -3,11 +3,38 @@
 #include <iostream>
 #include <string>
 #include <locale.h>
-#include <span> 
+#include <math.h>
 
 #define TAB_WIDTH 4
+#define ZERO_INDEX_LOCATOR true 
 
 using namespace std;
+
+void b_move(int y, int x) {
+	move(0, 20);
+	clrtoeol();
+	char str[1000];
+
+	if (ZERO_INDEX_LOCATOR) {
+		sprintf(str, "r:%d, c:%d", y-1, x);
+	} else {
+		sprintf(str, "r:%d, c:%d", y, x+1);
+	}
+	addstr(str);
+
+	move(y,x);
+}
+
+void debug_msg(int y, int x, const char* dbmsg, WINDOW* screen){
+	int rows = getmaxy(screen);
+
+	move(rows-1, 0);
+	clrtoeol();
+
+	addstr(dbmsg);
+
+	b_move(y, x);
+}
 
 void save(int x, int y, bool& saved) {
 	move(0, 0);
@@ -17,7 +44,7 @@ void save(int x, int y, bool& saved) {
 
 	move(0, 0);
 	chgat(-1, A_NORMAL, 0, NULL);
-	move(y, x);
+	b_move(y, x);
 
 	refresh();
 	saved = true;
@@ -31,11 +58,12 @@ void unsave(int x, int y, bool& saved) {
 
 	move(0, 0);
 	chgat(-1, A_BLINK | A_ITALIC, 0, NULL);
-	move(y,x);
+	b_move(y,x);
 
 	refresh();
 	saved = false;
 }
+
 
 int main(int argc, char** argv) {
 
@@ -91,7 +119,7 @@ int main(int argc, char** argv) {
 
 			data_x++;
 			x++; 
-
+			b_move(y, x);
 			if (saved) {
 				unsave(x, y, saved);
 			}
@@ -104,20 +132,63 @@ int main(int argc, char** argv) {
 
 				data_x++;
 				x++;
+				move(y,x);
 			}
-			move(y,x);
+			b_move(y,x);
 			if (saved) {
 				unsave(x, y, saved);
 			}
 		}
 
 		if (k == KEY_BACKSPACE) {
-			if (x > 0) {
-				#ifndef __INTELLISENSE__ 
-				std::span<char> to_check(data[data_y]);
-				#endif
+			if (x > 0 && x % TAB_WIDTH == 0) {
+				// check if all the chars before cursor are spaces
+				// if not, dont remove tabs at a time.
+				bool all_spaces = true;				
 
-				
+				for (int i = 0; i<data_x; i++){
+					if (data[data_y][i] != 32) {
+						all_spaces = false;
+						// int chr = data[data_y][i];
+						// char msg[1000];	
+						// sprintf(msg, "This is the character we found: %d", chr);
+
+						// debug_msg(y, x, msg, screen);
+						break;
+					}
+				}
+
+				if (all_spaces) {
+					for (int i = 0; i<TAB_WIDTH; i++) {
+						x--;
+						data_x--;
+
+						move(y,x);
+
+						delch();
+						data[data_y].pop_back();
+					}
+					b_move(y,x);
+				} else {
+					x--;
+					data_x--;
+
+					b_move(y,x);
+
+					delch();
+					data[data_y].pop_back();
+				}
+
+			} else if (x > 0) {
+
+				debug_msg(y, x, "Not mod 4 = 0", screen);
+				x--;
+				data_x--;
+
+				b_move(y,x);
+
+				delch();
+				data[data_y].pop_back();
 			}
 
 			if (saved) {
@@ -127,18 +198,18 @@ int main(int argc, char** argv) {
 		}
 
 		if (k == KEY_ENTER || k == 10 || k == 13) {
-			data.insert(data.begin() + data_y + 1, {});
+			vector<char> empty;
+			data.insert(data.begin() + data_y + 1, empty);
 
 			data_y++;
 			y++;
 
 			data_x = 0;
 			x = 0;
-			move(y, x);
+			b_move(y, x);
 			if (saved) {
 				unsave(x,  y, saved);
 			}
-
 		}
 
 		if (k == KEY_UP) {
@@ -147,20 +218,20 @@ int main(int argc, char** argv) {
 				data_y--;
 
 				if (x >= data[data_y].size()) {
-					data_x = data[data_y].size()-1;
+					data_x = data[data_y].size();
 					x = data_x;
 				}
 
-				move(y,x);
+				b_move(y,x);
 			}
 		}
 
 		if (k == KEY_RIGHT){
 
-			if (x+1 < data[data_y].size()) {
+			if (x < data[data_y].size()) {
 				x++;
 				data_x++;
-				move(y,x);
+				b_move(y,x);
 			}
 			
 		}
@@ -169,7 +240,13 @@ int main(int argc, char** argv) {
 			if (data_y+1 < data.size()) {
 				y++;
 				data_y++;
-				move(y,x);
+
+				if (x >= data[data_y].size()) {
+					data_x = data[data_y].size();
+					x = data_x;
+				}
+
+				b_move(y,x);
 			}
 		}
 
@@ -177,7 +254,7 @@ int main(int argc, char** argv) {
 			if (x > 0) {
 				data_x--;
 				x--;
-				move(y,x);
+				b_move(y,x);
 			}
 		}
 	}
