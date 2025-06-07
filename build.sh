@@ -1,2 +1,2 @@
-g++ main.cpp -lncursesw -o a
+g++ -std=c++20 main.cpp -lncursesw -o a
 ./a
