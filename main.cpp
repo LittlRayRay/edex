@@ -36,6 +36,10 @@ void debug_msg(int y, int x, const char* dbmsg, WINDOW* screen){
 	b_move(y, x);
 }
 
+void debug_clear(int y, int x, WINDOW* screen) {
+	debug_msg(y, x, "", screen);
+}
+
 void save(int x, int y, bool& saved) {
 	move(0, 0);
 	clrtoeol();
@@ -64,6 +68,18 @@ void unsave(int x, int y, bool& saved) {
 	saved = false;
 }
 
+bool check_all_spaces(vector<vector<char>>& data, int& data_y, int& data_x) {
+	bool spaces = true;
+
+	for (int i = 0; i < data_x; i++) {
+		if (data[data_y][i] != 32) {
+			spaces = false;
+			break;
+		}
+	}
+
+	return spaces;
+}
 
 int main(int argc, char** argv) {
 
@@ -97,10 +113,15 @@ int main(int argc, char** argv) {
 	curs_set(1);
 
 	int y, x;
+	int maxy, maxx;
 		
 	while (!close) {
 		int k = getch();
+
+		getmaxyx(screen, maxy, maxx);
 		getyx(screen, y, x);	
+
+		debug_clear(y,x,screen);
 
 		if (k == KEY_F(1)){
 			close = true;
@@ -112,83 +133,108 @@ int main(int argc, char** argv) {
 			}
 		}
 
-		if (k >= 32 && k <= 126) {
-			addch(k);
-
+		if ((k >= 32 && k <= 126) || k == 9) {
+			if (k == 9) {
+				k = '\t';
+				for (int i = 0; i < TAB_WIDTH; i++){
+					if (x < maxx-1) {
+						x++;
+					} else {
+						y++;
+						x = 0; 
+					}
+				}
+			} else {
+				if (x < maxx-1) {
+					x++;
+				} else {
+					y++;
+					x = 0;
+				}
+			}
 			data[data_y].insert(data[data_y].begin() + data_x, k);
-
+			clrtoeol();
+			int track_x = x;
+			int track_y = y;
+			for (int i = data_x; i < data[data_y].size(); i++) {
+				if (data[data_y][i] == '\t') {
+					if (track_x + TAB_WIDTH < maxx) {
+						track_x += TAB_WIDTH;
+					} else {
+						track_x = (TAB_WIDTH + track_x) % maxx;
+						track_y += 1;
+					}
+				} else {
+					addch(data[data_y][i]);
+					if (track_x < maxx-1) {
+						track_x += 1;
+					} else {
+						track_x = 0;
+						track_y += 1;
+					}
+				}
+				move(track_y, track_x);
+			}
 			data_x++;
-			x++; 
 			b_move(y, x);
 			if (saved) {
 				unsave(x, y, saved);
 			}
 		}
 
-		if (k == 9) {
-			for (int i = 0; i<TAB_WIDTH; i++) {
-				data[data_y].insert(data[data_y].begin() + data_x, 32);
-				addch(32);
-
-				data_x++;
-				x++;
-				move(y,x);
-			}
-			b_move(y,x);
-			if (saved) {
-				unsave(x, y, saved);
-			}
-		}
-
 		if (k == KEY_BACKSPACE) {
-			if (x > 0 && x % TAB_WIDTH == 0) {
-				// check if all the chars before cursor are spaces
-				// if not, dont remove tabs at a time.
-				bool all_spaces = true;				
 
-				for (int i = 0; i<data_x; i++){
-					if (data[data_y][i] != 32) {
-						all_spaces = false;
-						// int chr = data[data_y][i];
-						// char msg[1000];	
-						// sprintf(msg, "This is the character we found: %d", chr);
-
-						// debug_msg(y, x, msg, screen);
-						break;
-					}
-				}
-
-				if (all_spaces) {
-					for (int i = 0; i<TAB_WIDTH; i++) {
-						x--;
-						data_x--;
-
-						move(y,x);
-
-						delch();
-						data[data_y].pop_back();
-					}
-					b_move(y,x);
-				} else {
-					x--;
-					data_x--;
-
-					b_move(y,x);
-
-					delch();
-					data[data_y].pop_back();
-				}
-
-			} else if (x > 0) {
-
-				debug_msg(y, x, "Not mod 4 = 0", screen);
-				x--;
-				data_x--;
+			// 3 cases; 
+			// x = 0, data_x  = 0;
+			// x = 0, data_x > 0;
+			// x > 0, data_x > 0;
+			
+			if (x == 0 && data_x == 0 && data_y > 0) {
+				data.erase(data.begin() + data_y); 	
+				data_y--;
+				y--;
+				x = data[data_y].size();
+				data_x = x;
 
 				b_move(y,x);
+			} else if (x == 0 && data_x > 0){
+				data_x--;
+				
+				if (data[data_y][data_x] == '\t') {
+					for (int i = 0; i<TAB_WIDTH; i++) {
+						if ( x > 0) {
+							x--;
+						} else {
+							x=maxx-1;
+							y--;
+						}
+					}
+				} else {
+					y--;
+					x=maxx-1;
+				}
 
+				b_move(y,x);
 				delch();
-				data[data_y].pop_back();
+				data[data_y].erase(data[data_y].begin() + data_x);
+			} else if (x > 0 && data_x > 0){
+				data_x--;
+				if (data[data_y][data_x] == '\t') {
+					for (int i = 0; i<TAB_WIDTH; i++) {
+						if ( x > 0) {
+							x--;
+						} else {
+							x=maxx-1;
+							y--;
+						}
+					}
+				} else {
+					x--;
+				}
+				
+				b_move(y,x);
+				delch();
+				data[data_y].erase(data[data_y].begin() + data_x);
 			}
 
 			if (saved) {
@@ -229,7 +275,12 @@ int main(int argc, char** argv) {
 		if (k == KEY_RIGHT){
 
 			if (x < data[data_y].size()) {
-				x++;
+				if (x+1 < maxx) {
+					x++;
+				} else {
+					x = 0;
+					y++;
+				}
 				data_x++;
 				b_move(y,x);
 			}
