@@ -145,6 +145,7 @@ int main(int argc, char** argv) {
 					}
 				}
 			} else {
+				addch(k);
 				if (x < maxx-1) {
 					x++;
 				} else {
@@ -156,6 +157,7 @@ int main(int argc, char** argv) {
 			clrtoeol();
 			int track_x = x;
 			int track_y = y;
+			data_x++;
 			for (int i = data_x; i < data[data_y].size(); i++) {
 				if (data[data_y][i] == '\t') {
 					if (track_x + TAB_WIDTH < maxx) {
@@ -175,7 +177,6 @@ int main(int argc, char** argv) {
 				}
 				move(track_y, track_x);
 			}
-			data_x++;
 			b_move(y, x);
 			if (saved) {
 				unsave(x, y, saved);
@@ -274,7 +275,7 @@ int main(int argc, char** argv) {
 
 		if (k == KEY_RIGHT){
 
-			if (x < data[data_y].size()) {
+			if (data_x < data[data_y].size()) {
 				if (x+1 < maxx) {
 					x++;
 				} else {
