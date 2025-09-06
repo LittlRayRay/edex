@@ -40,6 +40,8 @@ int main(int argc, char** argv) {
 	int data_x = 0;
 	int data_y = 0;
 
+	pair<int, int> visibile {0, 0};
+
 	data.push_back({});
 
 	WINDOW* screen = initscr();
